@@ -2,7 +2,7 @@
  * pedal.h
  *
  *  Created on: Aug 30, 2020
- *      Author: Matt
+ *      Author: Matthew Smith
  */
 #include "stm32f407xx.h"
 #define ARM_MATH_CM4

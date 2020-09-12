@@ -42,26 +42,19 @@
 
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
-
 DAC_HandleTypeDef hdac;
-
 I2C_HandleTypeDef hi2c2;
-
 TIM_HandleTypeDef htim2;
-TIM_HandleTypeDef htim6;
 TIM_HandleTypeDef htim7;
-
 /* USER CODE BEGIN PV */
 pedal_t* Pedal;
 
 int adc_done = 0;
-bool_t do_display_update = FALSE; //maybe doing it in the loop will help?
+
 bool_t buttons[4];
 bool_t last_buttons[4];
-queue_t* button_queue;
 press_t press = None;
 bool_t DO_IIR = TRUE;
-bool_t DO_DELAY = FALSE;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -72,14 +65,11 @@ static void MX_TIM2_Init(void);
 static void MX_DAC_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_TIM7_Init(void);
-static void MX_TIM6_Init(void);
 /* USER CODE BEGIN PFP */
-
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
 /* USER CODE END 0 */
 
 /**
@@ -98,8 +88,8 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-  //init_effects();
-  Pedal = init_pedal();
+
+  Pedal = init_pedal(); //initialize overall pedal state
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -116,18 +106,14 @@ int main(void)
   MX_DAC_Init();
   MX_I2C2_Init();
   MX_TIM7_Init();
-  MX_TIM6_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start(&htim2); 	//activate timers
   HAL_TIM_Base_Start(&htim7);
   HAL_TIM_Base_Start_IT(&htim7);
-  HAL_TIM_Base_Start(&htim6);
-  HAL_TIM_Base_Start_IT(&htim6);
   HAL_ADC_Start_IT(&hadc1); 		// and adc
   HAL_DAC_Start(&hdac, DAC_CHANNEL_1); // and dac
 
-  init_display_ui(Pedal);
-  button_queue = init_queue();
+  init_display_ui(Pedal); //start up the UI now that hardware is initialized
 
   /* USER CODE END 2 */
 
@@ -139,13 +125,11 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 	  if(adc_done && HAL_DAC_GetState(&hdac) == HAL_DAC_STATE_READY){
-	  		  adc_done=0;
-	  		  //send_data_to_dac(2048);
-	  		  get_and_send();
-	  	  }else
-	  if(press != None){
-		  update_display(Pedal, &press);
+		  adc_done=0;
+		  get_and_send();
 
+	  }else if(press != None){
+		  update_display(Pedal, &press);
 	  }
   }
   /* USER CODE END 3 */
@@ -298,7 +282,7 @@ static void MX_I2C2_Init(void)
 
   /* USER CODE END I2C2_Init 1 */
   hi2c2.Instance = I2C2;
-  hi2c2.Init.ClockSpeed = 100000*4;
+  hi2c2.Init.ClockSpeed = 100000;
   hi2c2.Init.DutyCycle = I2C_DUTYCYCLE_2;
   hi2c2.Init.OwnAddress1 = 0;
   hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
@@ -358,44 +342,6 @@ static void MX_TIM2_Init(void)
   /* USER CODE BEGIN TIM2_Init 2 */
 
   /* USER CODE END TIM2_Init 2 */
-
-}
-
-/**
-  * @brief TIM6 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM6_Init(void)
-{
-
-  /* USER CODE BEGIN TIM6_Init 0 */
-
-  /* USER CODE END TIM6_Init 0 */
-
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-
-  /* USER CODE BEGIN TIM6_Init 1 */
-
-  /* USER CODE END TIM6_Init 1 */
-  htim6.Instance = TIM6;
-  htim6.Init.Prescaler = 41;
-  htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim6.Init.Period = 65535;
-  htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim6, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM6_Init 2 */
-
-  /* USER CODE END TIM6_Init 2 */
 
 }
 
@@ -506,8 +452,9 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 void get_and_send(void){
 	uint16_t sample = HAL_ADC_GetValue(&hadc1)*2;
-	// do something
+
 	uint16_t intermediate, output;
+
 	if(DO_IIR){
 		do_iir(&sample, &intermediate);
 		sample = intermediate;
@@ -518,10 +465,6 @@ void get_and_send(void){
 			sample = intermediate;
 		}
 	}
-	if(0){
-		do_delay(&sample, &intermediate);
-		sample = intermediate;
-	}
 
 	output = sample;
 
@@ -530,7 +473,6 @@ void get_and_send(void){
 
 void send_data_to_dac(uint16_t data){
 	HAL_DAC_SetValue(&hdac, DAC_CHANNEL_1,DAC_ALIGN_12B_R, data);
-	//HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
 }
 
 void flip_monitor(void)
@@ -559,11 +501,7 @@ void read_buttons(void){
 	buttons[1] = HAL_GPIO_ReadPin(GPIOD, user_button_2_Pin);
 	buttons[2] = HAL_GPIO_ReadPin(GPIOD, user_button_3_Pin);
 	buttons[3] = HAL_GPIO_ReadPin(GPIOD, user_button_4_Pin);
-	//if(buttons[0] && !last_buttons[0]) enqueue(button_queue, A);
-	//if(buttons[1] && !last_buttons[1]) enqueue(button_queue, B);
-	//if(buttons[2] && !last_buttons[2]) enqueue(button_queue, Left);
-	//if(buttons[3] && !last_buttons[3]) enqueue(button_queue, Right);
-
+	//we can assume we'll only get 1 press in 250hz poll rate. KISS
 	if(buttons[0] && !last_buttons[0]) press = A;
 	if(buttons[1] && !last_buttons[1]) press = B;
 	if(buttons[2] && !last_buttons[2]) press = Left;
@@ -587,13 +525,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	  //button timer
 	  read_buttons();
 	  //flip_monitor();
-  }else if(htim->Instance == htim6.Instance){
-	  //display timer
-	  flip_monitor();
-	  //do_display_update = TRUE;
-	  //update_display();
-	  //flip_monitor();
-
   }
 
 }

@@ -2,7 +2,7 @@
  * common.c
  *
  *  Created on: Sep 8, 2020
- *      Author: Matt
+ *      Author: Matthew Smith
  */
 
 #include "common.h"

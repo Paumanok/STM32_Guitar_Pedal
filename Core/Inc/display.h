@@ -2,7 +2,7 @@
  * display.h
  *
  *  Created on: Sep 7, 2020
- *      Author: Matt
+ *      Author: Matthew Smith
  */
 
 #ifndef INC_DISPLAY_H_
@@ -14,14 +14,6 @@
 typedef enum{Locked, Delay}screen_t;
 typedef enum{DelayTime, DelayWD}delay_screen_t;
 
-
-typedef struct{
-	screen_t cur_screen; 				//where are we overall
-	delay_screen_t cur_delay_screen;	//where are we in delay
-
-}display_state;
-
-display_state state;
 
 void init_display_ui(pedal_t* pedal);
 void dumb_update_display(void);

@@ -2,27 +2,14 @@
  * display.c
  *
  *  Created on: Sep 7, 2020
- *      Author: Matt
+ *      Author: Matthew Smith
  */
 #include "display.h"
 
-  //ssd1306_Init();
-  //HAL_Delay(3000);
-  //ssd1306_TestFPS();
-  //ssd1306_TestFonts();
-  //ssd1306_TestAll();
-  //ssd1306_Fill(Black);
-  //ssd1306_SetCursor(2,0);
-  //ssd1306_WriteString("AAAAA", Font_7x10, White );
-  //ssd1306_UpdateScreen();
-  //ssd1306_Fill(White);
-
 
 void init_display_ui(pedal_t* pedal){
-	state.cur_screen = Locked;
-	state.cur_delay_screen = DelayTime;
 	ssd1306_Init();
-	HAL_Delay(1000);
+	HAL_Delay(500);
 	ssd1306_Fill(Black);
 	ssd1306_UpdateScreen();
 	draw_lock_screen(pedal);
@@ -30,16 +17,7 @@ void init_display_ui(pedal_t* pedal){
 
 void dumb_update_display(void){
 	static int call_count = 0;
-	/*switch(state.cur_screen){
-		case Locked:
-			draw_lock_screen();
-			break;
-		default:
-			draw_lock_screen();
-			break;
-		call_count++;
-	}
-*/
+
 	switch(call_count){
 		case 0:
 			draw_word_screen("0");
@@ -63,10 +41,10 @@ void dumb_update_display(void){
 }
 
 void update_display(pedal_t * pedal, press_t* press){
-	//while(!isEmpty(queue)){
+
 		bool_t is_locked = pedal->effects[pedal->cur_effect]->locked;
 		bool_t editing = pedal->effects[pedal->cur_effect]->edit_mode;
-		//press_t press = dequeue(queue);
+
 
 		switch(*press){
 		case A:
@@ -80,7 +58,12 @@ void update_display(pedal_t * pedal, press_t* press){
 			break;
 
 		case B:
-			if(!is_locked && editing){
+			if(is_locked && !editing){
+				//toggle enabled
+				pedal->effects[pedal->cur_effect]->enabled = !(pedal->effects[pedal->cur_effect]->enabled);
+				draw_lock_screen(pedal);
+			}
+			else if(!is_locked && editing){
 				pedal->effects[pedal->cur_effect]->edit_mode = FALSE;
 				draw_effect_screen(pedal);
 			}else if(!is_locked && !editing){
@@ -132,15 +115,19 @@ void update_display(pedal_t * pedal, press_t* press){
 			break;
 		}
 		*press = None;
-	//}
+
 }
 
 void draw_lock_screen(pedal_t* pedal){
 	ssd1306_Fill(Black);
 	ssd1306_SetCursor(5,5);
-	ssd1306_WriteString("Locked", Font_11x18, White);
-	ssd1306_SetCursor(30, 5+18);
 	ssd1306_WriteString(pedal->effects[pedal->cur_effect]->name, Font_11x18, White);
+	ssd1306_SetCursor(30, 5+18);
+	if(pedal->effects[pedal->cur_effect]->enabled){
+		ssd1306_WriteString("Enabled", Font_11x18, White);
+	} else {
+		ssd1306_WriteString("Disabled", Font_11x18, White);
+	}
 	ssd1306_UpdateScreen();
 }
 
@@ -154,11 +141,10 @@ void draw_effect_screen(pedal_t* pedal){
 	ssd1306_WriteString(pedal->effects[pedal->cur_effect]->setting_name[cur_setting], Font_11x18, White);
 	ssd1306_UpdateScreen();
 }
-//TODO something died in here, not sure what
+
 void draw_effect_edit_screen(pedal_t* pedal){
 	ssd1306_Fill(Black);
 	ssd1306_SetCursor(5,5);
-
 	int cur_setting =  pedal->effects[pedal->cur_effect]->cur_setting;
 	ssd1306_WriteString(pedal->effects[pedal->cur_effect]->setting_name[cur_setting], Font_11x18, White);
 	ssd1306_SetCursor(30, 5+18);

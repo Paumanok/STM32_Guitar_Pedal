@@ -2,7 +2,7 @@
  * common.h
  *
  *  Created on: Sep 7, 2020
- *      Author: Matt
+ *      Author: Matthew Smith
  */
 
 #ifndef INC_COMMON_H_
@@ -11,10 +11,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-
+/////////////////// GENERAL TYPEDEFS ///////////////////////////
 typedef enum{Dec, Inc} update_t;
 typedef enum{FALSE,TRUE}bool_t;
 typedef enum{None,A, B, Left, Right}press_t;
+/////////////////// END GENERAL TYPEDEFS ////////////////////////
 
 ////////////////// QUEUE IMPLEMENTATION /////////////////////////
 #define QUEUE_MAX 5 //keep it low to keep away super humans and osu players

@@ -2,7 +2,7 @@
  * pedal.c
  *
  *  Created on: Aug 30, 2020
- *      Author: Matt
+ *      Author: Matthew Smith
  */
 
 #include "pedal.h"
