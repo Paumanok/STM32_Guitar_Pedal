@@ -451,7 +451,7 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 void get_and_send(void){
-	uint16_t sample = HAL_ADC_GetValue(&hadc1)*2;
+	uint16_t sample = HAL_ADC_GetValue(&hadc1);
 
 	uint16_t intermediate, output;
 
