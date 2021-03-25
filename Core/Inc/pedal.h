@@ -8,16 +8,17 @@
 #define ARM_MATH_CM4
 #include "arm_math.h"
 #include "common.h"
+#include "math.h"
 
-#define NUM_EFFECTS 1
+#define NUM_EFFECTS 3
 
 #define BLOCK_SIZE_FLOAT 1
 
 #define DELAY_INC_LEN 1000
-#define MAX_DELAY_LEN 24000
+#define MAX_DELAY_LEN 24000 //44kB ram
 #define DEFAULT_DELAY_TIME 20 //DELAY_TIME*INC_LEN / MAX_DELAY_LEN
 #define DEFAULT_DELAY_OFFSET 0
-#define DEFAULT_DRY_WET_RATIO 2
+#define DEFAULT_DRY_WET_RATIO 1
 
 typedef struct{
 	int delay_time;
@@ -26,6 +27,13 @@ typedef struct{
 	uint16_t delay_buf[MAX_DELAY_LEN];
 }delay_conf;
 
+#define DEFAULT_THETA 5
+#define MIN_THETA 1
+#define MAX_THETA 10
+
+typedef struct{
+	int theta;
+}at_dist_conf;
 
 typedef struct{
 	float buf_in [BLOCK_SIZE_FLOAT];
@@ -45,10 +53,16 @@ typedef enum{delta_t, wd_mix} delay_settings_t;
 effect_t* init_delay(void);
 void do_delay(uint16_t* input, uint16_t* output);
 void update_delay(update_t updt, int setting);
-void update_delay_time(update_t updt);
-void update_delay_WD(update_t updt);
+//void update_delay_time(update_t updt);
+//void update_delay_WD(update_t updt);
 int get_delay_setting_value(int setting);
 
+
+typedef enum{theta} at_dist_settings_t;
+effect_t* init_at_distortion(void);
+void do_at_dist(uint16_t* input, uint16_t* output);
+void update_at_dist(update_t updt, int setting);
+int get_at_dist_setting_value(int setting);
 
 effect_t* init_dummy(char*);
 void do_dummy(uint16_t*, uint16_t*);
