@@ -7,17 +7,24 @@
 
 #include "pedal.h"
 
+extern inline int circ_index(int last_index, int index, int max);
+
 void init_effects(void){
 	init_iir();
 	init_delay();
 }
 
 pedal_t* init_pedal(void){
+	//zero out common back buffer before anything.
+	for(int i=0; i < BACK_BUF_MAX_LEN; i++){
+			back_buf[i] = 0;
+		}
+
 	init_iir(); //no effect profile, always on;
 
 	pedal_t* p = (pedal_t*)malloc(sizeof(pedal_t));
 	p->n_effects = NUM_EFFECTS;
-	p->cur_effect = 0;
+	p->cur_effect = 1;
 	p->effects[0] = init_at_distortion();
 	p->effects[1] = init_delay();
 	p->effects[2] = init_dummy("dummy1");
@@ -59,21 +66,21 @@ effect_t* init_delay(void){
 	delay.delay_time = DEFAULT_DELAY_TIME;
 	delay.delay_offset = DEFAULT_DELAY_OFFSET;
 	delay.dry_wet_ratio = DEFAULT_DRY_WET_RATIO;
+	delay.n_layers = DEFAULT_NUM_LAYERS;
+	delay.delay_buf = back_buf; //just link the ptr to the start of back_buf so code makes sense
 
-	for(int i=0; i < MAX_DELAY_LEN; i++){
-		delay.delay_buf[i] = 0;
-	}
 
 	effect_t* e = (effect_t*)malloc(sizeof(effect_t));
 	strcpy(e->name,"Delay" );
-	e->n_settings = 2;
+	e->n_settings = 3;
 	e->cur_setting = delta_t;
 	strcpy(e->setting_name[0], "Delta t");
 	strcpy(e->setting_name[1], "Wet/Dry Mix");
+	strcpy(e->setting_name[2], "Layers");
 	e->locked = TRUE;
-	e->enabled = FALSE;
+	e->enabled = TRUE;
 	e->edit_mode = FALSE;
-	e->do_effect = do_delay;
+	e->do_effect = do_space_delay;
 	e->update_effect = update_delay;
 	e->get_setting_val = get_delay_setting_value;
 	e->effect_state = &delay;
@@ -81,21 +88,56 @@ effect_t* init_delay(void){
 
 }
 
-void do_delay(uint16_t* input, uint16_t* output){
+void do_delay(uint16_t* input, uint16_t* output)
+{
+	//*output = (*input + (delay.delay_buf[delay.delay_offset]/delay.dry_wet_ratio))/2; //proper signal combo, probably need float
+	uint32_t inter = *input;
+	uint16_t curr_delay = 0;
+	int layer_offset, adj_offset;
+	for(int layer = 1; layer <= delay.n_layers; layer++)
+	{
+		layer_offset = -(layer * (delay.delay_time * DELAY_INC_LEN)); //0 at first delay
+		adj_offset = circ_index(delay.delay_offset, layer_offset, MAX_DELAY_LEN);
+		curr_delay = delay.delay_buf[adj_offset]/delay.dry_wet_ratio;
+		inter += curr_delay;
 
-	/*
-	if(delay.dry_wet_ratio == 1){
-		*output = (*input + delay.delay_buf[delay.delay_offset])/2; //proper signal combo, probably need float
-	}else if((delay.delay_offset % delay.dry_wet_ratio) == 0){
-		*output = *input;
-	}else{
-		*output = delay.delay_buf[delay.delay_offset];
 	}
-	*/
-	*output = (*input + (delay.delay_buf[delay.delay_offset]/delay.dry_wet_ratio))/2; //proper signal combo, probably need float
+	*output = (uint16_t)(inter/delay.n_layers);
+
 	delay.delay_buf[delay.delay_offset] = *input;
 
-	if(delay.delay_offset<(DELAY_INC_LEN*delay.delay_time)){
+	if(delay.delay_offset< MAX_DELAY_LEN) //using the whole buffer now
+	{
+		delay.delay_offset++;
+	}else{
+		delay.delay_offset = 0;
+	}
+}
+
+void do_space_delay(uint16_t* input, uint16_t* output){
+
+	uint32_t inter = *input;
+	uint16_t curr_delay = 0;
+	int layer_offset, adj_offset;
+	for(int layer = 0; layer < delay.n_layers; layer++)
+	{
+		layer_offset = delay.delay_offset + (layer * ((DELAY_INC_LEN*delay.delay_time) / delay.n_layers)); //get offset for current layer
+		//layer_offset = (layer * (delay.delay_offset));
+		adj_offset = circ_index(delay.delay_offset, layer_offset,(DELAY_INC_LEN*delay.delay_time)); //adjust for circular buffer
+		curr_delay = delay.delay_buf[adj_offset]/delay.dry_wet_ratio; //fetch delay value at adjusted index
+		inter = (inter + curr_delay); //add to current signal and adjust
+	}
+
+	*output = (uint16_t)(inter/(delay.n_layers));
+//#define NO_LAYER
+#ifdef NO_LAYER
+	*output = (*input + (delay.delay_buf[delay.delay_offset]/delay.dry_wet_ratio))/2; //proper signal combo, probably need float
+#endif
+
+	delay.delay_buf[delay.delay_offset] = *input;
+
+	if(delay.delay_offset<(DELAY_INC_LEN*delay.delay_time))
+	{
 		delay.delay_offset++;
 	}else{
 		delay.delay_offset = 0;
@@ -120,14 +162,26 @@ void update_delay(update_t updt, int setting){
 			if(delay.dry_wet_ratio < 10) delay.dry_wet_ratio++;
 		}
 		 //update_delay_WD(updt);
+	}else if(setting == n_layers){
+		if(updt == Dec){
+			if(delay.n_layers > 1) delay.n_layers--;
+		}
+		if(updt == Inc){
+			if(delay.n_layers < 3) delay.n_layers++;
+		}
+		 //update_delay_WD(updt);
 	}
 }
 
 int get_delay_setting_value(int setting){
 	if(setting == delta_t){
 		return delay.delay_time;
-	}else{
+	}else if(setting == wd_mix){
 		return delay.dry_wet_ratio;
+	}else if(setting == n_layers){
+		return delay.n_layers;
+	}else{
+		return 0;
 	}
 }
 /*

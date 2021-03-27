@@ -17,6 +17,24 @@ typedef enum{FALSE,TRUE}bool_t;
 typedef enum{None,A, B, Left, Right}press_t;
 /////////////////// END GENERAL TYPEDEFS ////////////////////////
 
+////////////////// CIRCULAR BUFFER ///////////////////
+
+//inline int circ_index(int last_index, int index, int max);
+//uint16_t circular_get(uint16_t* buffer, int index, int size);
+//void circular_set(uint16_t* buffer, int index, int size, uint16_t value);
+inline int circ_index(int last_index, int index, int max)
+{
+	int ret_index;
+	if((last_index + index) > 0){
+		ret_index = (last_index + index) % max;
+	}else{
+		ret_index = max - (abs(last_index + index) % max);
+	}
+	return ret_index;
+}
+
+
+
 ////////////////// QUEUE IMPLEMENTATION /////////////////////////
 #define QUEUE_MAX 5 //keep it low to keep away super humans and osu players
 
